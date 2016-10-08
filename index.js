@@ -1,8 +1,12 @@
-var app = require('express')();
+var express = require('express');
+var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
+var users = {};
 var messages = [];
+
+app.use(express.static(__dirname + '/public'));
 
 app.get('/', function(req, res) {
   res.sendFile(__dirname + '/index.html');
@@ -11,18 +15,34 @@ app.get('/', function(req, res) {
 io.on('connection', function(socket) {
   console.log('user is connected');
 
-  socket.user = 'akhan';
+  socket.on('registerUser', function(name, callback) {
+    if(!users.hasOwnProperty(name)) {
+      users[name] = socket;
+      socket.user = name;
 
-  socket.on('new message', function(message) {
-
-    messages.push(message);
-    io.emit('update messages', {messages: messages, user: socket.user});
-
+      updateusers();
+      callback(true, name);
+    } else {
+      callback(false);
+    }
   });
 
-  socket.on('disconnect', function() {
-    console.log('user is gone');
+  var updateusers = function() {
+    var usersArray = Object.keys(users);
+
+    io.emit('updateUsers', usersArray);
+  };
+
+  socket.on('sendMessage', function(msg) {
+    messages.push(msg);
+    io.emit('newMessage', socket.user, msg);
   });
+
+  socket.on('sendMessagePrivate', function(from, to, msg) {
+    users[from].emit('newMessagePrivate', from, msg);
+    users[to].emit('newMessagePrivate', from, msg);
+  });
+
 });
 
 http.listen(4000, function() {

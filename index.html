@@ -6,41 +6,139 @@
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
+    <link href="/bootstrap.min.css" rel="stylesheet">
+    <style>
+        #messages, #messagesPr {
+            height: 200px;
+            background-color: #eee;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        #users {
+            height: 200px;
+            background-color: #eee;
+            width: 100%;
+        }
+
+        #second {
+            display: none;
+        }
+
+        #error1 {
+            color: red;
+        }
+    </style>
 </head>
 <body>
 
-<h2>Socket test app</h2>
+<div id="first">
 
-<div id="messages"></div>
+    <h2>Welcome to this app</h2>
+    <p id="error1"></p>
+    <form>
+        <input type="text" id="name" placeholder="write something..." autocomplete="off">
+        <input type="submit" value="Send" id="sendName">
+    </form>
 
-<form>
-    <input type="text" id="message" placeholder="write something...">
-    <input type="submit" value="Send" id="send">
-</form>
+</div>
+
+<div class="row" id="second">
+
+    <div class="col-md-6">
+        <h2>Socket test app</h2>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div id="messages"></div>
+            </div>
+            <div class="col-md-4">
+                <div id="users"></div>
+            </div>
+        </div>
+
+        <form>
+            <input type="text" id="msg" placeholder="write something..." autocomplete="off">
+            <input type="submit" value="Send" id="sendMsg">
+        </form>
+    </div>
+
+    <div class="col-md-3">
+        <h2>Private</h2>
+
+        <div id="messagesPr"></div>
+
+        <form>
+            <input type="text" id="msgPrTo" placeholder="write something..." autocomplete="off">
+            <input type="text" id="msgPrCon" placeholder="write something..." autocomplete="off">
+            <input type="submit" value="Send" id="sendMsgPr">
+        </form>
+    </div>
+
+</div>
+
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
     var socket = io();
+    var gl_name = 'undefined';
 
-    $('#send').click(function(e) {
+    $('#sendName').click(function(e) {
         e.preventDefault();
 
-        var message = $('#message').val();
+        var name = $('#name').val();
 
-        socket.emit('new message', message);
+        socket.emit('registerUser', name, function(suc, loc_name) {
+            if(suc) {
+                gl_name = loc_name;
 
-        $('#message').val('');
+                $('#first').hide();
+                $('#second').show();
+            } else {
+                $('#error1').html('User exists, choose another name');
+            }
+        });
+
+        $('#name').val('');
     });
 
-    socket.on('update messages', function(data) {
+    $('#sendMsg').click(function(e) {
+        e.preventDefault();
 
-        html = '';
-        for(var i = 0; i < data.messages.length; i++)
-            html += data.messages[i] + '<br>';
+        var msg = $('#msg').val();
 
-        $('#messages').html(html);
+        socket.emit('sendMessage', msg);
 
+        $('#msg').val('');
+    });
+
+    $('#sendMsgPr').click(function(e) {
+        e.preventDefault();
+
+        var from = gl_name;
+        var to = $('#msgPrTo').val();
+        var msg = $('#msgPrCon').val();
+
+        socket.emit('sendMessagePrivate', from, to, msg);
+
+    });
+
+    socket.on('newMessage', function(name, msg) {
+        $('#messages').append('<b>' + name + '</b>: ' + msg + '<br>');
+    });
+
+    socket.on('updateUsers', function(usersArray) {
+        var html = '';
+
+        for(var i = 0; i < usersArray.length; i++)
+            html += usersArray[i] + '<br>';
+
+        $('#users').html(html);
+    });
+
+    socket.on('newMessagePrivate', function(name, msg) {
+        $('#messagesPr').append('<b>' + name + '</b>: ' + msg + '<br>');
     });
 
 </script>
